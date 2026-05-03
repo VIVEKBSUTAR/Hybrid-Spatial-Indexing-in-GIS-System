@@ -1155,6 +1155,8 @@
 
             if (STATE.rangeMesh) {
                 STATE.threeScene.remove(STATE.rangeMesh);
+                STATE.rangeMesh.geometry.dispose();
+                STATE.rangeMesh.material.dispose();
             }
 
             const box = STATE.rangeBox;
@@ -1168,7 +1170,7 @@
 
             const material = new THREE.LineBasicMaterial({
                 color: 0xffff00,
-                depthTest: false   // 🔥 KEY FIX
+                depthTest: false   // 
             });
 
             const wireframe = new THREE.LineSegments(edges, material);
@@ -1179,8 +1181,8 @@
                 (box.minZ + box.maxZ) / 2
             );
 
-            wireframe.renderOrder = 999;      // 🔥 force on top
-            wireframe.scale.set(1.01, 1.01, 1.01); // 🔥 avoid overlap
+            wireframe.renderOrder = 999;      // 
+            wireframe.scale.set(1.01, 1.01, 1.01); //
 
             STATE.threeScene.add(wireframe);
             STATE.rangeMesh = wireframe;
@@ -1222,39 +1224,27 @@
 
             // F9: Point material with sizeAttenuation
             STATE.threePointsMaterial = new THREE.PointsMaterial({
-                size: 3,
+                size: 1.2,
                 vertexColors: true,
-                sizeAttenuation: true
+                sizeAttenuation: true,
+                transparent: true,
+                opacity: 0.9,
+                depthWrite: false  
             });
 
             // F9: Store point mesh for later rebuild
             rebuildThreePoints();
 
             // F4: Merge all grid lines into single geometry
-            const gridGeometry = new THREE.BufferGeometry();
-            const gridPositions = [];
-            for (let i = 0; i < 10; i++) {
-                for (let j = 0; j < 10; j++) {
-                    for (let k = 0; k < 10; k++) {
-                        const x0 = i * 100, y0 = j * 100, z0 = k * 100;
-                        const x1 = x0 + 100, y1 = y0 + 100, z1 = z0 + 100;
-                        // Box edges (8 vertices, 12 edges)
-                        const verts = [
-                            [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
-                            [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]
-                        ];
-                        const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-                        edges.forEach(([a,b]) => {
-                            gridPositions.push(verts[a][0], verts[a][1], verts[a][2]);
-                            gridPositions.push(verts[b][0], verts[b][1], verts[b][2]);
-                        });
-                    }
-                }
-            }
-            gridGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(gridPositions), 3));
-            const gridMaterial = new THREE.LineBasicMaterial({ color: 0x6366f1, transparent: true, opacity: 0.1 });
-            const gridLines = new THREE.LineSegments(gridGeometry, gridMaterial);
-            STATE.threeScene.add(gridLines);
+            
+            
+            const gridHelper = new THREE.GridHelper(1000, 10, 0x6366f1, 0x6366f1);
+
+            gridHelper.material.opacity = 0.15;
+            gridHelper.material.transparent = true;
+
+            STATE.threeScene.add(gridHelper);
+            
 
             // F10: Pause renderer when tab is hidden
             document.addEventListener('visibilitychange', () => {
@@ -1272,40 +1262,36 @@
 
         // F9: Rebuild point cloud when data changes
         function rebuildThreePoints() {
-            // Remove old points mesh
             if (STATE.threePointsMesh) {
                 STATE.threeScene.remove(STATE.threePointsMesh);
                 STATE.threePointsMesh.geometry.dispose();
             }
-            
+
             const geometry = new THREE.BufferGeometry();
             const positions = [];
             const colors = [];
-            STATE.allObjects.forEach(pt => {
+
+            const zSlice = STATE.zSliceVal;
+
+            let filtered = STATE.allObjects.filter(pt =>
+                Math.abs(pt.z - zSlice) < 100
+            );
+
+            filtered = filtered.slice(0, 5000);
+
+            filtered.forEach(pt => {
                 positions.push(pt.x, pt.y, pt.z);
 
-                let isInRange = false;
+                const z_norm = pt.z / 1000;
+                const hue = 180 + z_norm * 100;
+                const rgb = hslToRgb(hue / 360, 1, 0.5);
 
-                if (STATE.rangeBox) {
-                    const b = STATE.rangeBox;
-                    isInRange =
-                        pt.x >= b.minX && pt.x <= b.maxX &&
-                        pt.y >= b.minY && pt.y <= b.maxY &&
-                        pt.z >= b.minZ && pt.z <= b.maxZ;
-                }
-
-                if (isInRange) {
-                    colors.push(0, 1, 0); // green
-                } else {
-                    const z_norm = pt.z / 1000;
-                    const hue = 180 + z_norm * 100;
-                    const rgb = hslToRgb(hue / 360, 1, 0.5);
-                    colors.push(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
-                }
+                colors.push(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
             });
+
             geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
             geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
-            
+
             STATE.threePointsMesh = new THREE.Points(geometry, STATE.threePointsMaterial);
             STATE.threeScene.add(STATE.threePointsMesh);
         }
