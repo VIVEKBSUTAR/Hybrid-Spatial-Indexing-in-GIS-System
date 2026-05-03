@@ -336,7 +336,28 @@
         }
     </style>
 </head>
+
 <body>
+    <div id="mode-select-screen" style="
+    position: fixed;
+    inset: 0;
+    background: #050a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 9999;
+">
+    <h1 style="margin-bottom: 30px;">Choose Engine</h1>
+
+    <button class="button button-primary" onclick="selectMode('octree')" style="width: 200px; margin-bottom: 10px;">
+        Octree (3D)
+    </button>
+
+    <button class="button button-secondary" onclick="selectMode('quadtree')" style="width: 200px;">
+        Quadtree (2D)
+    </button>
+</div>
     <div class="container">
         <!-- SIDEBAR -->
         <div class="sidebar">
@@ -459,7 +480,7 @@
         // ═══════════════════════════════════════════════════════════════════════
         // GLOBAL STATE
         // ═══════════════════════════════════════════════════════════════════════
-        
+        let ENGINE_MODE = null;
         const STATE = {
             mode: null,
             allObjects: [],
@@ -512,6 +533,27 @@
             line.textContent = `${icons[type] || ''} ${msg}`;
             logEl.insertBefore(line, logEl.firstChild);
             while (logEl.children.length > 8) logEl.removeChild(logEl.lastChild);
+        }
+
+        function selectMode(mode) {
+            ENGINE_MODE = mode;
+
+            document.getElementById('mode-select-screen').style.display = 'none';
+
+            // 🔥 Hide 3D tab if quadtree
+            if (mode === 'quadtree') {
+                const btns = document.querySelectorAll('.tab-button');
+                btns.forEach(btn => {
+                    if (btn.textContent.includes('3D')) {
+                        btn.style.display = 'none';
+                    }
+                });
+
+                // Change title
+                document.querySelector('.header-logo').textContent = '◆ MiniGIS 2D';
+            }
+
+            console.log("Selected mode:", mode);
         }
 
         function switchTab(btn, tabId) {
@@ -598,7 +640,7 @@
 
         async function checkServerHealth() {
             try {
-                await fetch(`${SERVER}/stats`, { method: 'POST', body: JSON.stringify({}) });
+                await fetch(`${SERVER}/${ENGINE_MODE}/stats`, { method: 'POST', body: JSON.stringify({}) });
                 document.getElementById('health-indicator').classList.remove('offline');
             } catch {
                 document.getElementById('health-indicator').classList.add('offline');
@@ -613,7 +655,7 @@
             const n = parseInt(document.getElementById('gen-count').value) || 10000;
             log(`Generating ${n} points...`, 'info');
             try {
-                const res = await fetch(`${SERVER}/generate`, {
+                const res = await fetch(`${SERVER}/${ENGINE_MODE}/generate`, {
                     method: 'POST',
                     body: JSON.stringify({ n })
                 });
@@ -627,7 +669,7 @@
 
         async function loadAllPoints() {
             try {
-                const res = await fetch(`${SERVER}/sample`, {
+                const res = await fetch(`${SERVER}/${ENGINE_MODE}/sample`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ n: 5000 })
@@ -660,7 +702,7 @@
 
         async function clearData() {
             try {
-                await fetch(`${SERVER}/clear`, { method: 'POST', body: '{}' });
+                await fetch(`${SERVER}/${ENGINE_MODE}/clear`, { method: 'POST', body: '{}' });
                 STATE.allObjects = [];
                 STATE.positions = new Float32Array(0);
                 STATE.pointCount = 0;
@@ -673,7 +715,7 @@
 
         async function loadStats() {
             try {
-                const res = await fetch(`${SERVER}/stats`, { method: 'POST', body: '{}' });
+                const res = await fetch(`${SERVER}/${ENGINE_MODE}/stats`, { method: 'POST', body: '{}' });
                 const data = await res.json();
                 const html = `
                     <div class="stat-card">
@@ -713,7 +755,7 @@
             STATE.knnResults = [];
 
             try {
-                const res = await fetch(`${SERVER}/range`, {
+                const res = await fetch(`${SERVER}/${ENGINE_MODE}/range`, {
                     method: 'POST',
                     body: JSON.stringify({ box })
                 });
@@ -741,7 +783,7 @@
             STATE.nnResult = null;
 
             try {
-                const res = await fetch(`${SERVER}/nn`, {
+                const res = await fetch(`${SERVER}/${ENGINE_MODE}/nn`, {
                     method: 'POST',
                     body: JSON.stringify({ x, y, z })
                 });
@@ -766,7 +808,7 @@
             STATE.knnResults = [];
 
             try {
-                const res = await fetch(`${SERVER}/knn`, {
+                const res = await fetch(`${SERVER}/${ENGINE_MODE}/knn`, {
                     method: 'POST',
                     body: JSON.stringify({ x, y, z, k })
                 });
@@ -782,7 +824,7 @@
 
         async function loadOctree() {
             try {
-                const res = await fetch(`${SERVER}/dump`, {
+                const res = await fetch(`${SERVER}/${ENGINE_MODE}/dump`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({})
@@ -838,7 +880,7 @@
             const results = { range: [], range_naive: [], nn: [], knn: [] };
             try {
                 // Range
-                const rRes = await fetch(`${SERVER}/range`, {
+                const rRes = await fetch(`${SERVER}/${ENGINE_MODE}/range`, {
                     method: 'POST',
                     body: JSON.stringify({ box: { minX: 100, minY: 100, minZ: 100, maxX: 400, maxY: 400, maxZ: 400 } })
                 });
@@ -846,7 +888,7 @@
                 results.range = [rData.result_count, rData.visited_nodes, parseFloat(rData.time_ms)];
 
                 // Range Naive
-                const rnRes = await fetch(`${SERVER}/range_naive`, {
+                const rnRes = await fetch(`${SERVER}/${ENGINE_MODE}/range_naive`, {
                     method: 'POST',
                     body: JSON.stringify({ box: { minX: 100, minY: 100, minZ: 100, maxX: 400, maxY: 400, maxZ: 400 } })
                 });

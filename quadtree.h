@@ -2,18 +2,26 @@
 #define QUADTREE_H
 
 #include "types.h"
+#include <stdbool.h>
 
-bool         containsPoint(BoundingBox box, double x, double y);
-bool         intersectsBox(BoundingBox a, BoundingBox b);
-double       pointDistance(double x1, double y1, double x2, double y2);
+/* Geometry */
+bool contains2D(BoundingBox2D b, SpatialObject2D* obj);
+bool intersects2D(BoundingBox2D a, BoundingBox2D b);
 
-QuadTreeNode* createNode(BoundingBox boundary);
-void          subdivideNode(QuadTreeNode* node);
-bool          insertQuadTree(QuadTreeNode* node, SpatialObject* obj, int depth);
+/* Core tree */
+QuadtreeNode* createNode(BoundingBox2D boundary);
+void subdivide(QuadtreeNode* node);
+bool insertQuadtree(QuadtreeNode* node, SpatialObject2D* obj, int depth);
 
-/* Statistics */
-void  getQuadTreeStats(QuadTreeNode* node, int depth,
-                       int* total_nodes, int* max_depth, int* obj_count);
-void  printGridStats(void);
+void getQuadTreeStats(QuadtreeNode* node, int depth,
+                      int* total_nodes, int* max_depth, int* obj_count);
+/* Queries */
+void rangeQuery2D(QuadtreeNode* node,
+                  BoundingBox2D range,
+                  SpatialObject2D* results[],
+                  int* count);
+
+/* Memory */
+void freeQuadtree(QuadtreeNode* node);
 
 #endif
