@@ -106,12 +106,12 @@ class AppHandler(http.server.SimpleHTTPRequestHandler):
 
         # CLEAR
         if path == '/clear':
-            open(DATA_FILE, 'w').close()
+            open(DATA_FILE, 'wb').close()
             response = {"status": "cleared"}
 
         # BUG-2 + BUG-7 FIX: handle /quadtree/insert, write x y z (no id)
         elif path in ('/insert', '/quadtree/insert', '/octree/insert'):
-            with open(DATA_FILE, 'w') as f:
+            with open(DATA_FILE, 'w', newline='\n') as f:
                 for pt in req.get('points', []):
                     f.write(f"{pt['x']} {pt['y']} {pt.get('z', 0.0)}\n")
             response = {"status": "inserted"}
