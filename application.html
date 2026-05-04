@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hybrid GIS Simulation</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Inter;
+            background: #0d1117;
+            color: white;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        canvas {
+            flex: 1;
+            background: #020617;
+        }
+
+        button, input {
+            width: 100%;
+            margin: 5px 0;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+        }
+
+        button {
+            background: #6366f1;
+            color: white;
+            cursor: pointer;
+        }
+
+        .legend {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="sidebar">
+        <h2>Hybrid GIS</h2>
+
+        <button onclick="generateWorld()">Generate World</button>
+
+        <input id="search" placeholder="pizza, top cafes, hospitals near me">
+        <input id="k" type="number" value="3">
+        <button onclick="search()">Search</button>
+
+        <p id="log"></p>
+
+        <div class="legend">
+            <p><span class="dot" style="background:red"></span> Hospital</p>
+            <p><span class="dot" style="background:green"></span> Cafe</p>
+            <p><span class="dot" style="background:blue"></span> School</p>
+            <p><span class="dot" style="background:brown"></span> Terrain</p>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>

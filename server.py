@@ -48,7 +48,8 @@ class GISHandler(http.server.SimpleHTTPRequestHandler):
         # ── Read request ─────────────────────────────
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
-        req = json.loads(post_data.decode('utf-8'))
+        data = post_data.decode('utf-8')
+        req = json.loads(data) if data else {}
 
         response_data = {}
 
