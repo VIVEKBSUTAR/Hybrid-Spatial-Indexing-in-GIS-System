@@ -60,7 +60,10 @@ typedef struct {
 } Neighbor;
 
 int compareNeighbors(const void* a, const void* b) {
-    return ((Neighbor*)a)->dist - ((Neighbor*)b)->dist;
+    double diff = ((Neighbor*)a)->dist - ((Neighbor*)b)->dist;
+    if (diff < 0) return -1;
+    if (diff > 0) return 1;
+    return 0;
 }
 
 /* Collect all points */

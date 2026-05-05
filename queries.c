@@ -109,6 +109,12 @@ void executeNN(double qx, double qy, double qz) {
         int minCy = originCy - r, maxCy = originCy + r;
         int minCz = originCz - r, maxCz = originCz + r;
         
+        // Terrain problem fix: if qz is 300 (flat terrain), search all Z slices
+        if (qz == 300.0) {
+            minCz = 0;
+            maxCz = GRID_SIZE - 1;
+        }
+        
         if (minCx < 0)          minCx = 0;
         if (maxCx >= GRID_SIZE) maxCx = GRID_SIZE - 1;
         if (minCy < 0)          minCy = 0;
@@ -120,9 +126,15 @@ void executeNN(double qx, double qy, double qz) {
             for (int j = minCy; j <= maxCy; j++) {
                 for (int k = minCz; k <= maxCz; k++) {
                     /* Ring perimeter check in 3D */
-                    if (r > 0 && i > minCx && i < maxCx &&
-                                 j > minCy && j < maxCy &&
-                                 k > minCz && k < maxCz) continue;
+                    if (qz == 300.0) {
+                        // For flat terrain search, perimeter is only determined by X and Y
+                        if (r > 0 && i > originCx - r && i < originCx + r &&
+                                     j > originCy - r && j < originCy + r) continue;
+                    } else {
+                        if (r > 0 && i > minCx && i < maxCx &&
+                                     j > minCy && j < maxCy &&
+                                     k > minCz && k < maxCz) continue;
+                    }
 
                     BoundingBox3D searchBox = {
                         qx - bestDist, qy - bestDist, qz - bestDist,
@@ -245,6 +257,12 @@ void executeKNN(double qx, double qy, double qz, int k) {
         int minCy = originCy - r, maxCy = originCy + r;
         int minCz = originCz - r, maxCz = originCz + r;
         
+        // Terrain problem fix: if qz is 300 (flat terrain), we must search all Z slices
+        if (qz == 300.0) {
+            minCz = 0;
+            maxCz = GRID_SIZE - 1;
+        }
+        
         if (minCx < 0)          minCx = 0;
         if (maxCx >= GRID_SIZE) maxCx = GRID_SIZE - 1;
         if (minCy < 0)          minCy = 0;
@@ -256,9 +274,15 @@ void executeKNN(double qx, double qy, double qz, int k) {
             for (int j = minCy; j <= maxCy; j++) {
                 for (int kk = minCz; kk <= maxCz; kk++) {
                     /* Ring perimeter check in 3D */
-                    if (r > 0 && i > minCx && i < maxCx &&
-                                 j > minCy && j < maxCy &&
-                                 kk > minCz && kk < maxCz) continue;
+                    if (qz == 300.0) {
+                        // For flat terrain search, perimeter is only determined by X and Y
+                        if (r > 0 && i > originCx - r && i < originCx + r &&
+                                     j > originCy - r && j < originCy + r) continue;
+                    } else {
+                        if (r > 0 && i > minCx && i < maxCx &&
+                                     j > minCy && j < maxCy &&
+                                     kk > minCz && kk < maxCz) continue;
+                    }
 
                     BoundingBox3D searchBox = {
                         qx - searchRadius, qy - searchRadius, qz - searchRadius,

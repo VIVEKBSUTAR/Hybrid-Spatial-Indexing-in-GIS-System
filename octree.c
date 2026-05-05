@@ -24,6 +24,12 @@ double pointDistance3D(double x1, double y1, double z1,
     double dx = x2 - x1;
     double dy = y2 - y1;
     double dz = z2 - z1;
+    
+    // Terrain problem fix: if the white dot (query point) is on terrain (z=300), space is flat
+    if (z1 == 300.0) {
+        dz = 0.0;
+    }
+    
     return sqrt(dx*dx + dy*dy + dz*dz);
 }
 

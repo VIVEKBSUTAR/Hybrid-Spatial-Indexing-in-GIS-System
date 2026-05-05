@@ -9,7 +9,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", () => { resizeCanvas(); draw(); });
 
-const SERVER = "";   // same origin — served by app_server.py
+const SERVER = window.location.protocol === "file:" ? "http://localhost:8000" : "";
 
 const WORLD = 1000;  // world coordinate space is 0-1000
 
@@ -209,11 +209,21 @@ function filterByType(pts, type) {
 async function runNN(type) {
     const z = userZ();
 
-    const res = await fetch(`${SERVER}/octree/knn`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ x: userPoint.wx, y: userPoint.wy, z, k: 20 })
-    });
+    let res;
+    // Terrain problem fix: "when white dot on terrain, all space for it is flat, check only distance"
+    if (z === 300) {
+        res = await fetch(`${SERVER}/quadtree/knn`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ x: userPoint.wx, y: userPoint.wy, k: 20 })
+        });
+    } else {
+        res = await fetch(`${SERVER}/octree/knn`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ x: userPoint.wx, y: userPoint.wy, z, k: 20 })
+        });
+    }
 
     const data = await res.json();
     let pts = dedup(data.points || []);
@@ -227,7 +237,7 @@ async function runNN(type) {
     draw();
 }
 
-// ── KNN: hybrid quadtree + octree merge ──────────────────────────────
+// ── KNN: hybrid quadtree + octree merge ───────────
 async function runKNN(type, k) {
     const z = userZ();
 
@@ -238,16 +248,22 @@ async function runKNN(type, k) {
         body:    JSON.stringify({ x: userPoint.wx, y: userPoint.wy, k: k * 3 })
     });
     const data2D = await res2D.json();
+    
+    let pts = data2D.points || [];
 
-    // Step 2: Octree 3D
-    const res3D = await fetch(`${SERVER}/octree/knn`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ x: userPoint.wx, y: userPoint.wy, z, k: k * 3 })
-    });
-    const data3D = await res3D.json();
+    // Terrain problem fix: only use 3D octree if we are NOT on flat terrain
+    if (z !== 300) {
+        // Step 2: Octree 3D
+        const res3D = await fetch(`${SERVER}/octree/knn`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ x: userPoint.wx, y: userPoint.wy, z, k: k * 3 })
+        });
+        const data3D = await res3D.json();
+        pts = [...pts, ...(data3D.points || [])];
+    }
 
-    let pts = dedup([...(data2D.points || []), ...(data3D.points || [])]);
+    pts = dedup(pts);
     pts = filterByType(pts, type);
 
     results = pts.slice(0, k);
@@ -256,7 +272,7 @@ async function runKNN(type, k) {
     draw();
 }
 
-// ── Range: hybrid quadtree + octree ──────────────────────────────────
+// ── Range: hybrid quadtree + octree ───────────
 async function runRange(type) {
     const z   = userZ();
     const R   = 150;  // world-unit radius
@@ -272,19 +288,25 @@ async function runRange(type) {
         })
     });
     const data2D = await res2D.json();
+    
+    let pts = data2D.points || [];
 
-    // Step 2: Octree 3D range
-    const res3D = await fetch(`${SERVER}/octree/range`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-            box: { minX: wx-R, minY: wy-R, minZ: 0,
-                   maxX: wx+R, maxY: wy+R, maxZ: 1000 }
-        })
-    });
-    const data3D = await res3D.json();
+    // Terrain problem fix: only use 3D octree if we are NOT on flat terrain
+    if (z !== 300) {
+        // Step 2: Octree 3D range
+        const res3D = await fetch(`${SERVER}/octree/range`, {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({
+                box: { minX: wx-R, minY: wy-R, minZ: 0,
+                       maxX: wx+R, maxY: wy+R, maxZ: 1000 }
+            })
+        });
+        const data3D = await res3D.json();
+        pts = [...pts, ...(data3D.points || [])];
+    }
 
-    let pts = dedup([...(data2D.points || []), ...(data3D.points || [])]);
+    pts = dedup(pts);
     pts = filterByType(pts, type);
 
     results = pts;
@@ -292,3 +314,6 @@ async function runRange(type) {
         `Range: ${results.length} result(s) within ${R} units`;
     draw();
 }
+
+// Auto-generate world on load so the map is visible immediately
+generateWorld();

@@ -175,6 +175,17 @@
             transform: scale(1.02);
         }
 
+        .button-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .button-success:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
         .button-secondary {
             background: rgba(99, 102, 241, 0.1);
             color: #c7d2fe;
@@ -358,7 +369,7 @@
         Quadtree (2D)
     </button>
 
-    <button onclick="window.location.href='application.html'">
+    <button class="button button-success" onclick="window.location.href='application.html'" style="width: 200px; margin-top: 20px;">
         Start Application
     </button>
 </div>
@@ -555,6 +566,23 @@
 
                 // Change title
                 document.querySelector('.header-logo').textContent = '◆ MiniGIS 2D';
+                
+                // Hide Z slice bar and min z max z inputs
+                const minZ = document.getElementById('range-minz');
+                if (minZ) minZ.style.display = 'none';
+                const maxZ = document.getElementById('range-maxz');
+                if (maxZ) maxZ.style.display = 'none';
+                const queryZ = document.getElementById('query-z');
+                if (queryZ) queryZ.style.display = 'none';
+                const zSlice = document.querySelector('.z-slider-container');
+                if (zSlice) zSlice.style.display = 'none';
+                
+                // Remove (3D) from section titles
+                document.querySelectorAll('.section-title').forEach(el => {
+                    if (el.textContent.includes('(3D)')) {
+                        el.textContent = el.textContent.replace('(3D)', '(2D)');
+                    }
+                });
             }
 
             console.log("Selected mode:", mode);
@@ -863,15 +891,16 @@
                     node.size * 2,
                     node.size * 2
                 );
+                
+                const edges = new THREE.EdgesGeometry(geometry);
 
-                const material = new THREE.MeshBasicMaterial({
+                const material = new THREE.LineBasicMaterial({
                     color: 0x6366f1,
-                    wireframe: true,
                     transparent: true,
-                    opacity: 0.15
+                    opacity: 0.05
                 });
 
-                const cube = new THREE.Mesh(geometry, material);
+                const cube = new THREE.LineSegments(edges, material);
                 cube.position.set(node.x, node.y, node.z);
 
                 STATE.threeScene.add(cube);
@@ -1228,9 +1257,9 @@
 
             // F9: Point material with sizeAttenuation
             STATE.threePointsMaterial = new THREE.PointsMaterial({
-                size: 1.2,
+                size: 3.0,
                 vertexColors: true,
-                sizeAttenuation: true,
+                sizeAttenuation: false,
                 transparent: true,
                 opacity: 0.9,
                 depthWrite: false  
@@ -1244,7 +1273,7 @@
             
             const gridHelper = new THREE.GridHelper(1000, 10, 0x6366f1, 0x6366f1);
 
-            gridHelper.material.opacity = 0.15;
+            gridHelper.material.opacity = 0.05;
             gridHelper.material.transparent = true;
 
             STATE.threeScene.add(gridHelper);
@@ -1286,11 +1315,15 @@
             filtered.forEach(pt => {
                 positions.push(pt.x, pt.y, pt.z);
 
-                const z_norm = pt.z / 1000;
-                const hue = 180 + z_norm * 100;
-                const rgb = hslToRgb(hue / 360, 1, 0.5);
+                if (STATE.rangeResults && STATE.rangeResults.some(r => r.id === pt.id)) {
+                    colors.push(1.0, 0.0, 0.0);
+                } else {
+                    const z_norm = pt.z / 1000;
+                    const hue = 180 + z_norm * 100;
+                    const rgb = hslToRgb(hue / 360, 1, 0.5);
 
-                colors.push(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
+                    colors.push(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
+                }
             });
 
             geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
