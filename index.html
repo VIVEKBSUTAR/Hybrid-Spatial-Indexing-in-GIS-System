@@ -505,6 +505,7 @@
             dragStart: null,
             dragEnd: null,
             rangeBox: null,
+            queryPoint: null,
             benchmarkData: [],
             threeScene: null,
             threeRenderer: null,
@@ -1088,6 +1089,30 @@
                 ctx.fillText((idx + 1).toString(), x, y + 3);
             });
 
+            // ===== QUERY POINT =====
+            if (STATE.queryPoint) {
+                const x = STATE.queryPoint.x * scaleX;
+                const y = STATE.queryPoint.y * scaleY;
+
+                ctx.save();
+                ctx.strokeStyle = '#f59e0b';
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.18)';
+                ctx.lineWidth = 2;
+
+                ctx.beginPath();
+                ctx.arc(x, y, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(x - 14, y);
+                ctx.lineTo(x + 14, y);
+                ctx.moveTo(x, y - 14);
+                ctx.lineTo(x, y + 14);
+                ctx.stroke();
+                ctx.restore();
+            }
+
             // ===== RANGE BOX =====
             if (STATE.rangeBox) {
                 ctx.setLineDash([6, 3]);
@@ -1107,6 +1132,22 @@
             }
 
             STATE.canvasDirty = false;
+        }
+
+        function setQueryPointFromCanvasEvent(e) {
+            const canvas = e.currentTarget;
+            const rect = canvas.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * WORLD_SIZE;
+            const y = ((e.clientY - rect.top) / rect.height) * WORLD_SIZE;
+            const z = STATE.zSliceVal;
+
+            STATE.queryPoint = { x, y, z };
+
+            document.getElementById('query-x').value = x.toFixed(1);
+            document.getElementById('query-y').value = y.toFixed(1);
+            document.getElementById('query-z').value = z.toFixed(1);
+
+            return { x, y, z };
         }
 
 
@@ -1358,12 +1399,14 @@
             STATE.isDragging = true;
             if (STATE.mode !== 'range') {
                 if (STATE.mode === 'nn' || STATE.mode === 'knn') {
-                    const rect = e.target.getBoundingClientRect();
-                    const x = (e.clientX - rect.left) / rect.width * WORLD_SIZE;
-                    const y = (e.clientY - rect.top) / rect.height * WORLD_SIZE;
-                    document.getElementById('query-x').value = x.toFixed(1);
-                    document.getElementById('query-y').value = y.toFixed(1);
-                    document.getElementById('query-z').value = STATE.zSliceVal;
+                    setQueryPointFromCanvasEvent(e);
+                    markDirty();
+
+                    if (STATE.mode === 'nn') {
+                        nnQuery();
+                    } else {
+                        knnQuery();
+                    }
                 }
                 return;
             }

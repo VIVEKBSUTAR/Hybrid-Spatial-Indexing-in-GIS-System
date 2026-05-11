@@ -8,12 +8,21 @@ import random
 
 PORT = 8000
 DATA_FILE = "points.txt"
-OCTREE_CMD = "./main_octree"
-QUADTREE_CMD = "./main_quadtree"
+
+
+def _resolve_engine(candidates):
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]
+
 
 if os.name == 'nt':
-    OCTREE_CMD = "main_octree.exe"
-    QUADTREE_CMD = "main_quadtree.exe"
+    OCTREE_CMD = _resolve_engine(["main.exe", "main_octree.exe"])
+    QUADTREE_CMD = _resolve_engine(["main_quadtree.exe"])
+else:
+    OCTREE_CMD = _resolve_engine(["./main.exe", "./main_octree.exe", "./main_octree"])
+    QUADTREE_CMD = _resolve_engine(["./main_quadtree.exe", "./main_quadtree"])
 
 
 def parse_stderr(stderr_text):
@@ -27,6 +36,21 @@ def parse_stderr(stderr_text):
 
 
 class GISHandler(http.server.SimpleHTTPRequestHandler):
+
+    def _set_json_headers(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
 
     def do_POST(self):
     
@@ -46,8 +70,8 @@ class GISHandler(http.server.SimpleHTTPRequestHandler):
         ENGINE = OCTREE_CMD if mode == 'octree' else QUADTREE_CMD
 
         # ── Read request ─────────────────────────────
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length) if content_length > 0 else b''
         data = post_data.decode('utf-8')
         req = json.loads(data) if data else {}
 
@@ -66,12 +90,16 @@ class GISHandler(http.server.SimpleHTTPRequestHandler):
             open(DATA_FILE, "w").close()
             response_data = {"status": "cleared"}
 
+        # ── Build ───────────────────────────────────
+        elif path == '/build':
+            response_data = {"status": "built"}
+
         # ── Generate ─────────────────────────────────
         elif path == '/generate':
             n = req.get('n', 1000)
             cmd = [ENGINE, "generate", str(n)]
             try:
-                proc = subprocess.run(cmd, capture_output=True, text=True)
+                subprocess.run(cmd, capture_output=True, text=True, check=True)
                 response_data = {"status": "generated", "n": n}
             except Exception as e:
                 response_data = {"error": str(e)}
@@ -252,14 +280,15 @@ class GISHandler(http.server.SimpleHTTPRequestHandler):
                 response_data = {'error': str(e)}
 
         # ── Response ─────────────────────────────────
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
+        self._set_json_headers()
         self.wfile.write(json.dumps(response_data).encode('utf-8'))
 
     def log_message(self, format, *args):
         pass  # suppress per-request noise in terminal
+
+
+class ReusableTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
 
 
 def _parse_points_3d(stdout_text):
@@ -289,7 +318,7 @@ def _parse_points(stdout_text):
     return points
 
 
-with socketserver.TCPServer(("", PORT), GISHandler) as httpd:
+with ReusableTCPServer(("", PORT), GISHandler) as httpd:
     open(DATA_FILE, "a").close()
     print(f"Server running on http://localhost:{PORT}")
     print("Compile:  gcc -O2 -o main.exe main.c octree.c grid.c queries.c -lm")
